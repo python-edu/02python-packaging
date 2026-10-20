@@ -1,300 +1,155 @@
-# Add flat project support
+# Flat-layout generator
 
-## Goal
+## 1. Generate the next project
 
-Extend the current generator so that it can create two project types:
+Start in `projectgen-simple-toml/`, with its environment active.
 
-```text
-simple
-flat
+```bash
+projectgen projectgen-flat -d ..
+deactivate
+cd ../projectgen-flat
 ```
 
-`simple` stays unchanged.
+This creates a simple project with a new environment.
 
-`flat` should create:
+## 2. Organize the generator manually
+
+Create `projectgen/` and an empty `projectgen/__init__.py`.
+Copy the five Python modules from `projectgen-simple-toml/` into `projectgen/`.
+Create `README.md` in the project root with the heading `# projectgen`.
 
 ```text
-my-flat-project/
+projectgen-flat/
 ├── env/
-├── data/
-├── notebooks/
-├── my_flat_project/
+├── projectgen/
 │   ├── __init__.py
-│   └── cli.py
+│   ├── cli.py
+│   ├── environment.py
+│   ├── myparser.py
+│   ├── naming.py
+│   ├── projectfiles.py
+│   └── structure.py
 ├── pyproject.toml
 └── README.md
 ```
 
----
+`projectgen-flat` is the exercise directory; `projectgen` is the Python package and terminal command.
+Keep Python modules inside the package, with no extra copies in the root.
 
-## 1. Create the new stage
+## 3. Add flat support
 
-Open a terminal in `projectgen-toml` and activate its environment.
+Keep `naming.py` and `environment.py` unchanged.
+Replace `myparser.py`, `structure.py` and `cli.py` with the versions below.
+Create `projectfiles.py` inside the package.
 
-### Windows PowerShell
+Imports beginning with `.` refer to modules in the same package.
 
-```powershell
-.\env\Scripts\activate
-```
-
-### Linux / macOS
-
-```bash
-source env/bin/activate
-```
-
-Create a new project for this stage:
-
-```bash
-projectgen projectgen-flat -d ..
-```
-
-Deactivate the old environment:
-
-```bash
-deactivate
-```
-
-Go to the new project:
-
-```bash
-cd ../projectgen-flat
-```
-
-Copy these files from `projectgen-toml` into `projectgen-flat`:
-
-```text
-cli.py
-environment.py
-myparser.py
-naming.py
-structure.py
-pyproject.toml
-```
-
----
-
-## 2. Add a package name helper
-
-Add this function to `naming.py`:
-
-```python
-def package_name(project_name):
-    return project_name.replace('-', '_')
-```
-
-The complete `naming.py` should now be:
-
-```python
-from datetime import datetime
-
-
-def default_name():
-    return 'project-' + datetime.now().strftime('%Y%m%d%H%M%S')
-
-
-def package_name(project_name):
-    return project_name.replace('-', '_')
-```
-
----
-
-## 3. Add flat directory creation
-
-Add this function to `structure.py`:
-
-```python
-def create_flat(project, package):
-    project.mkdir()
-    (project / 'data').mkdir()
-    (project / 'notebooks').mkdir()
-
-    package_dir = project / package
-    package_dir.mkdir()
-    (package_dir / '__init__.py').touch()
-```
-
-The complete `structure.py` should now be:
-
-```python
-def create_simple(project):
-    project.mkdir()
-    (project / 'data').mkdir()
-    (project / 'notebooks').mkdir()
-
-
-def create_flat(project, package):
-    project.mkdir()
-    (project / 'data').mkdir()
-    (project / 'notebooks').mkdir()
-
-    package_dir = project / package
-    package_dir.mkdir()
-    (package_dir / '__init__.py').touch()
-```
-
----
-
-## 4. Create files for flat projects
-
-Create a new file:
-
-```text
-projectfiles.py
-```
-
-Add this code:
-
-```python
-def create_package_cli(project, package):
-    content = '''def main():
-    pass
-
-
-if __name__ == '__main__':
-    main()
-'''
-
-    (project / package / 'cli.py').write_text(
-        content,
-        encoding='utf-8'
-    )
-
-
-def create_readme(project, project_name):
-    content = f'# {project_name}\n'
-
-    (project / 'README.md').write_text(
-        content,
-        encoding='utf-8'
-    )
-
-
-def create_pyproject(project, project_name, package):
-    content = f'''[build-system]
-requires = ["setuptools>=77.0.3"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "{project_name}"
-version = "0.1.0"
-description = "Flat Python project"
-requires-python = ">=3.10"
-dependencies = []
-
-[project.scripts]
-{project_name} = "{package}.cli:main"
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["{package}*"]
-'''
-
-    (project / 'pyproject.toml').write_text(
-        content,
-        encoding='utf-8'
-    )
-```
-
-The package discovery section:
-
-```toml
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["my_project*"]
-```
-
-lets `setuptools` find the main package and future subpackages automatically.
-
----
-
-## 5. Add project type selection
-
-Add this argument to `myparser.py`:
-
-```python
-parser.add_argument(
-    '-t', '--type',
-    choices=['simple', 'flat'],
-    default='simple',
-    help='Project type: simple or flat (default: simple)'
-)
-```
-
-The complete `myparser.py` should now be:
+### `projectgen/myparser.py`
 
 ```python
 import argparse
 
+from .naming import project_name
+
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description='Create a simple Python project'
-    )
-
+    parser = argparse.ArgumentParser(description='Create a Python project')
     parser.add_argument(
-        'name', nargs='?',
+        'name', nargs='?', type=project_name,
         help='Project name (default: project-YYYYMMDDHHMMSS)'
     )
-
     parser.add_argument(
-        '-t', '--type',
-        choices=['simple', 'flat'],
-        default='simple',
-        help='Project type: simple or flat (default: simple)'
+        '-t', '--type', choices=['simple', 'flat'], default='simple',
+        help='Project type (default: simple)'
     )
-
     parser.add_argument(
-        '-d', '--directory',
-        default='.',
-        help='Parent directory (default: current directory)'
+        '-d', '--directory', default='.',
+        help='Existing parent directory (default: current directory)'
     )
-
     parser.add_argument(
-        '-n', '--no-venv',
-        action='store_true',
+        '-n', '--no-venv', action='store_true',
         help='Do not create a virtual environment'
+    )
+    parser.add_argument('--data', action='store_true', help='Create data directory')
+    parser.add_argument(
+        '--notebooks', action='store_true', help='Create notebooks directory'
     )
 
     return parser.parse_args()
 ```
 
----
-
-## 6. Update `cli.py`
-
-Add these imports:
+### `projectgen/structure.py`
 
 ```python
-from naming import default_name, package_name
-from projectfiles import create_package_cli, create_pyproject, create_readme
-from structure import create_flat, create_simple
+def create_simple(project):
+    project.mkdir()
+
+
+def create_optional_directories(project, data, notebooks):
+    if data:
+        (project / 'data').mkdir()
+    if notebooks:
+        (project / 'notebooks').mkdir()
+
+
+def create_flat(project, package):
+    project.mkdir()
+    package_dir = project / package
+    package_dir.mkdir()
+    (package_dir / '__init__.py').touch()
+    return package_dir
 ```
 
-Add project type selection:
+### `projectgen/projectfiles.py`
 
 ```python
-if args.type == 'simple':
-    create_simple(project)
+def create_package_cli(package_dir):
+    content = """def main():
+    pass
 
-elif args.type == 'flat':
-    package = package_name(name)
-    create_flat(project, package)
-    create_package_cli(project, package)
-    create_readme(project, name)
-    create_pyproject(project, name, package)
+
+if __name__ == '__main__':
+    main()
+"""
+    (package_dir / 'cli.py').write_text(content, encoding='utf-8')
+
+
+def create_readme(project, name):
+    (project / 'README.md').write_text(f'# {name}\n', encoding='utf-8')
+
+
+def create_pyproject(project, name, package):
+    content = f'''[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "{name}"
+version = "0.1.0"
+description = "Python project generated by projectgen"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+"{name}" = "{package}.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["{package}", "{package}.*"]
+'''
+    (project / 'pyproject.toml').write_text(content, encoding='utf-8')
 ```
 
-The complete `cli.py` should now be:
+### `projectgen/cli.py`
 
 ```python
 from pathlib import Path
 
-from environment import create_environment
-from myparser import parse_arguments
-from naming import default_name, package_name
-from projectfiles import create_package_cli, create_pyproject, create_readme
-from structure import create_flat, create_simple
+from .environment import create_environment
+from .myparser import parse_arguments
+from .naming import default_name, package_name
+from .projectfiles import create_package_cli, create_pyproject, create_readme
+from .structure import create_flat, create_optional_directories, create_simple
 
 
 def main():
@@ -305,13 +160,14 @@ def main():
     if args.type == 'simple':
         create_simple(project)
 
-    elif args.type == 'flat':
+    else:
         package = package_name(name)
-        create_flat(project, package)
-        create_package_cli(project, package)
+        package_dir = create_flat(project, package)
+        create_package_cli(package_dir)
         create_readme(project, name)
         create_pyproject(project, name, package)
 
+    create_optional_directories(project, args.data, args.notebooks)
     if not args.no_venv:
         create_environment(project)
 
@@ -322,19 +178,9 @@ if __name__ == '__main__':
     main()
 ```
 
----
+## 4. Configure installation of the generator
 
-## 7. Update the generator `pyproject.toml`
-
-Add:
-
-```toml
-"projectfiles"
-```
-
-to the `py-modules` list.
-
-The complete `pyproject.toml` should now be:
+Create `projectgen-flat/pyproject.toml`:
 
 ```toml
 [build-system]
@@ -344,80 +190,80 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "projectgen"
 version = "0.1.0"
-description = "Simple Python project generator"
+description = "Python project generator"
 requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-projectgen = "cli:main"
+projectgen = "projectgen.cli:main"
 
-[tool.setuptools]
-py-modules = [
-    "cli",
-    "environment",
-    "myparser",
-    "naming",
-    "projectfiles",
-    "structure"
-]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["projectgen", "projectgen.*"]
 ```
 
----
+The generator's entry point is now `projectgen.cli:main`.
+Package discovery replaces the old `py-modules` list.
 
-## 8. Install the updated generator
+## 5. Activate and install
 
-Activate the environment of `projectgen-flat`.
-
-### Windows PowerShell
+Windows PowerShell:
 
 ```powershell
-.\env\Scripts\activate
+.\env\Scripts\Activate.ps1
 ```
 
-### Linux / macOS
+Linux / macOS:
 
 ```bash
 source env/bin/activate
 ```
 
-Install the project in editable mode:
-
 ```bash
 python -m pip install -e .
-```
-
----
-
-## 9. Test the flat project type
-
-Check help:
-
-```bash
 projectgen -h
+python -m projectgen.cli -h
 ```
 
-Create one flat project:
+`python cli.py` no longer applies: there is no root-level `cli.py`.
+`python projectgen/cli.py` also fails because relative imports need package context.
+Use the installed command or `python -m projectgen.cli`.
+
+## 6. Test both output types
+
+From `projectgen-flat/`:
 
 ```bash
-projectgen my-flat-project -t flat -n
+projectgen test_flat_stage_simple -t simple -n
+projectgen my-flat-project -t flat -n --data --notebooks
 ```
 
-Check that the project contains:
+Expected flat output:
 
 ```text
-my_flat_project/__init__.py
-my_flat_project/cli.py
-pyproject.toml
-README.md
+my-flat-project/
+├── data/
+├── notebooks/
+├── my_flat_project/
+│   ├── __init__.py
+│   └── cli.py
+├── pyproject.toml
+└── README.md
 ```
 
-Open the generated `pyproject.toml` and check:
+Inspect the generated files:
 
-```toml
-[project.scripts]
-my-flat-project = "my_flat_project.cli:main"
+- `cli.py`: `main()` with `pass`; replace it with code for a new project
+- TOML name and terminal command: `my-flat-project`
+- entry point: `my_flat_project.cli:main`
+- package search location: `.`
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["my_flat_project*"]
+Test the generator outside its directory:
+
+```bash
+cd ..
+projectgen test_flat_outside -t flat -n
+cd projectgen-flat
 ```
+
+The generator itself uses flat layout. Its default output type remains simple at this stage.

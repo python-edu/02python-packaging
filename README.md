@@ -19,11 +19,6 @@ This repository has two goals:
    - allow selecting and installing Python packages
    - provide a command-line interface with different options
 
-**We will learn Python packaging by developing the `projectgen` application step by step.**
-
-We will start with several ordinary Python modules. First we will run them directly and observe the limitations of this approach. Then we will add `pyproject.toml` and install the same code without creating a Python package yet. After that we will reorganize the modules into a package using flat layout and finally src layout.
-
-We will not publish packages on PyPI.
 
 ---
 
@@ -164,31 +159,3 @@ For example, `project-20261017164310` becomes `project_20261017164310`.
 
 ---
 
-## Course materials
-
-We will develop the same `projectgen` application step by step:
-
-1. [Project layouts](p00_project_layouts.md) - compare simple, flat and src layouts
-2. [Simple generator](p01_simple_generator.md) - create the first version and compare different ways of running it
-3. [TOML and `pyproject.toml`](p02_toml.md) - learn the packaging configuration file
-4. [Install the simple generator](p03_simple_toml.md) - add `pyproject.toml`, install the existing modules and compare this with direct script execution
-5. [Flat layout](p04_flat_generator.md) - group the modules into the `projectgen` package
-6. [Src layout](p05_src_generator.md) - move the package under `src/`
-
-Later we will build a wheel and install the application with `pipx`.
-
----
-
-## Prerequisites
-
-Basic knowledge of:
-
-- Python scripts and modules
-- `import` and module search paths
-- virtual environments (`venv`)
-- using the system terminal
-
-These topics are covered in the [00entry](https://github.com/python-edu/00entry) repository.
-
-The exercises support Windows (PowerShell), Linux (Bash) and macOS (Zsh).
-No specific editor or IDE is required.

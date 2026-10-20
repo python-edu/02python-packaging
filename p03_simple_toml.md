@@ -1,56 +1,21 @@
 # Install the simple generator
 
-## Goal
+## 1. Generate a separate project
 
-Install the existing simple generator without changing its Python modules into a package.
-
-We will add only:
-
-```text
-pyproject.toml
-```
-
-and compare the installed application with the earlier direct script execution.
-
-Do not modify or delete the previous generator. Create a new project for this stage.
-
----
-
-## 1. Create the new stage
-
-Open a terminal in the previous simple generator project and activate its environment.
-
-### Windows PowerShell
-
-```powershell
-.\env\Scripts\activate
-```
-
-### Linux / macOS
+Open a terminal in `projectgen-simple/`.
 
 ```bash
-source env/bin/activate
+python cli.py projectgen-simple-toml -d ..
 ```
 
-Create a new project:
+The working generator creates `../projectgen-simple-toml/env/`.
+If an old environment is active, run `deactivate` before switching projects.
 
 ```bash
-python cli.py projectgen-toml -d ..
+cd ../projectgen-simple-toml
 ```
 
-Deactivate the old environment:
-
-```bash
-deactivate
-```
-
-Go to the new project:
-
-```bash
-cd ../projectgen-toml
-```
-
-Copy these files from the previous generator into the root of `projectgen-toml`:
+Copy these files from `projectgen-simple/` into the new project root:
 
 ```text
 cli.py
@@ -60,129 +25,77 @@ naming.py
 structure.py
 ```
 
-The Python code is unchanged from `p01_simple_generator.md`.
+Keep the previous project. Do not copy `env/`.
 
----
+## 2. Add `pyproject.toml` manually
 
-## 2. Add `pyproject.toml`
+Copy the complete simple configuration from `p02_toml.md` into
+`projectgen-simple-toml/pyproject.toml`.
+The Python modules remain unchanged.
 
-Create:
+## 3. Activate and install
 
-```text
-pyproject.toml
-```
-
-in the project root.
-
-Copy the complete configuration from `p02_toml.md`:
-
-```toml
-[build-system]
-requires = ["setuptools>=77.0.3"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "projectgen"
-version = "0.1.0"
-description = "Simple Python project generator"
-requires-python = ">=3.10"
-dependencies = []
-
-[project.scripts]
-projectgen = "cli:main"
-
-[tool.setuptools]
-py-modules = [
-    "cli",
-    "environment",
-    "myparser",
-    "naming",
-    "structure"
-]
-```
-
----
-
-## 3. Install the project
-
-Activate the environment created inside `projectgen-toml`.
-
-### Windows PowerShell
+Windows PowerShell:
 
 ```powershell
 .\env\Scripts\activate
 ```
 
-### Linux / macOS
+Linux / macOS:
 
 ```bash
 source env/bin/activate
 ```
 
-Install the project in editable mode:
-
 ```bash
 python -m pip install -e .
 ```
 
----
+Editable installation uses the source files in this project.
+Changes to Python code are available on the next run; changes to entry points or
+packaging configuration require installation again.
 
-## 4. Test the installed command
+## 4. Compare execution
 
-Check help:
+From `projectgen-simple-toml/`:
 
 ```bash
+python cli.py -h
+python -m cli -h
 projectgen -h
 ```
 
-Move to the parent directory:
+Move outside the source directory while keeping its environment active:
 
 ```bash
 cd ..
+projectgen test_installed -n --data
+python -m cli -h
 ```
 
-Create one test project:
+Both the installed command and installed module work from here.
+`test_installed/` contains only `data/`.
 
 ```bash
-projectgen test_toml -n
+python cli.py -h
 ```
 
-Expected result:
+This fails if the parent directory has no `cli.py`: file execution still needs the correct path.
 
-```text
-test_toml/
-├── data/
-└── notebooks/
-```
-
-The command works outside the generator directory while its environment is active.
-
----
-
-## What improved?
-
-Before installation we had to run the file directly, for example:
+Return to the generator:
 
 ```bash
-python path/to/cli.py
+cd projectgen-simple-toml
 ```
 
-After adding `pyproject.toml` and installing the project we can use:
+## 5. Observe editable mode
+
+In `cli.py`, temporarily change `Created simple project:` to `READY:`.
 
 ```bash
-projectgen
+projectgen test_editable -n
 ```
 
-The Python code itself has not changed.
+The changed message appears without reinstalling. Restore the original message.
 
-The current project is still a collection of top-level modules:
-
-```text
-cli
-environment
-myparser
-naming
-structure
-```
-
-In the next stage these related modules will be grouped inside one Python package.
+The installed program is still five top-level modules. The next stage groups them into a package.

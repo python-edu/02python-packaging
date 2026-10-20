@@ -1,277 +1,102 @@
-# `pyproject.toml`
+# TOML and `pyproject.toml`
 
-## What is TOML?
-
-**TOML** stands for **Tom's Obvious, Minimal Language**.
-
-It is a simple text format used for configuration files.
-
-Example:
-
-```toml
-[person]
-name = "Anna"
-age = 25
-```
 
 Official TOML documentation:
 
 - https://toml.io/en/
 
----
 
-## What is `pyproject.toml`?
 
-`pyproject.toml` is the standard configuration file used by modern Python packaging tools.
+## TOML syntax
 
-It is placed in the root directory of a Python project:
-
-```text
-my_project/
-├── pyproject.toml
-└── ...
-```
-
-It can describe:
-
-- how the project is built,
-- project metadata,
-- Python dependencies,
-- terminal commands provided by the installed project,
-- configuration of packaging tools.
-
-Python Packaging User Guide:
-
-- https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
-- https://packaging.python.org/en/latest/specifications/pyproject-toml/
-
-Project metadata in `[project]` is standardized by PEP 621:
-
-- https://peps.python.org/pep-0621/
-
----
-
-## Basic TOML syntax
-
-Values are assigned with `=`:
+TOML is a text configuration format: Tom's Obvious, Minimal Language.
 
 ```toml
-name = "my-project"
-version = "0.1.0"
+# Comment
+[person]
+name = "Anna"
+age = 25
+languages = ["Polish", "English"]
 ```
 
-Lists use square brackets:
+- `key = value`: assignment
+- `"text"`: string
+- `[value, value]`: list
+- `[section]`: table of settings
 
-```toml
-dependencies = ["numpy", "pandas"]
-```
 
-Sections also use square brackets:
+## Installation configuration
 
-```toml
-[project]
-name = "my-project"
-```
+`pyproject.toml` belongs in the project root.
+It describes the build backend, project metadata, dependencies and terminal commands.
 
-Comments start with `#`:
+| Section / field | Meaning |
+|---|---|
+| `[build-system]` | Tools needed to build the project |
+| `build-backend` | Backend that prepares the installable distribution |
+| `[project]` | Name, version and supported Python |
+| `dependencies` | Runtime packages installed along with this project |
+| `[project.scripts]` | Terminal commands mapped to Python functions |
+| `[tool.setuptools]` | Settings specific to setuptools |
 
-```toml
-# This is a comment
-name = "my-project"
-```
+The generator has no external runtime dependencies: `dependencies = []`.
+The build dependency `setuptools` is separate.
 
----
-
-## `pyproject.toml` in Python packaging
-
-Packaging tools read `pyproject.toml` when a project is installed or built.
-
-For example:
-
-```bash
-python -m pip install .
-```
-
-or:
-
-```bash
-python -m build
-```
-
----
-
-## `[build-system]`
-
-This section tells packaging tools which build backend should be used.
-
-In this course we use `setuptools`:
+## Complete configuration: simple generator
 
 ```toml
 [build-system]
 requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
-```
 
----
-
-## `[project]`
-
-This section contains basic information about the project:
-
-```toml
 [project]
 name = "projectgen"
 version = "0.1.0"
-description = "Simple Python project generator"
+description = "Python project generator"
 requires-python = ">=3.10"
 dependencies = []
+
+[project.scripts]
+projectgen = "cli:main"
+
+[tool.setuptools]
+py-modules = ["cli", "environment", "myparser", "naming", "structure"]
 ```
 
----
+`projectgen = "cli:main"` connects the command `projectgen` to `main()` in `cli.py`.
+`py-modules` lists the top-level modules to install, without `.py`.
 
-## Entry point: `[project.scripts]`
+## Package layouts
 
-An installed project can provide a terminal command.
-
-For the current simple generator:
+After moving the modules into a package, the entry point becomes:
 
 ```toml
 [project.scripts]
-projectgen = "cli:main"
-```
-
-The general form is:
-
-```toml
-command = "module:function"
-```
-
-When the module is inside a package, the form is:
-
-```toml
-command = "package.module:function"
-```
-
-For example:
-
-```toml
 projectgen = "projectgen.cli:main"
 ```
 
-After installation, the command can be started directly:
-
-```bash
-projectgen
-```
-
----
-
-## Tell `setuptools` what to install
-
-### Simple project with top-level modules
-
-The current generator consists of separate top-level modules:
-
-```text
-cli.py
-environment.py
-myparser.py
-naming.py
-structure.py
-```
-
-They can be listed explicitly:
-
-```toml
-[tool.setuptools]
-py-modules = [
-    "cli",
-    "environment",
-    "myparser",
-    "naming",
-    "structure"
-]
-```
-
-### Flat project with a Python package
-
-Later the project will contain a package:
-
-```text
-my_project/
-├── __init__.py
-├── cli.py
-└── ...
-```
-
-Files such as:
-
-```text
-cli.py
-module1.py
-module2.py
-```
-
-inside the package do not need to be listed separately.
-
-If the package later contains subpackages:
-
-```text
-my_project/
-├── __init__.py
-├── cli.py
-└── utils/
-    ├── __init__.py
-    └── files.py
-```
-
-we do not want to add every new subpackage manually to `pyproject.toml`.
-
-`setuptools` can find packages automatically:
+Replace `py-modules` with package discovery:
 
 ```toml
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["my_project*"]
+include = ["projectgen", "projectgen.*"]
 ```
 
-This finds:
+- `where = ["."]`: package in the project root — flat
+- `where = ["src"]`: package under `src/`
+- `include`: the package and its subpackages
 
-```text
-my_project
-my_project.utils
-...
-```
+## Installation and building
 
-The same idea will later be used with `src` layout, but `where` will point to `src`.
+| Command | Result |
+|---|---|
+| `python -m pip install -e .` | Editable installation for working on the source |
+| `python -m pip install .` | Build and install the current project |
+| `python -m build` | Save source and wheel distributions in `dist/` |
 
----
+`pip install .` already performs a build. A separate build is useful when you want
+an installable file to keep or give to someone else. We practise this in `p07`.
 
-## Complete `pyproject.toml` for the current simple generator
-
-```toml
-[build-system]
-requires = ["setuptools>=77.0.3"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "projectgen"
-version = "0.1.0"
-description = "Simple Python project generator"
-requires-python = ">=3.10"
-dependencies = []
-
-[project.scripts]
-projectgen = "cli:main"
-
-[tool.setuptools]
-py-modules = [
-    "cli",
-    "environment",
-    "myparser",
-    "naming",
-    "structure"
-]
-```
-
-This file can be copied directly into the current simple generator project.
+References: [TOML](https://toml.io/en/),
+[pyproject.toml](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/).
